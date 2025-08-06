@@ -1,0 +1,44 @@
+steps:
+  # Step 1: Build the base image with CUDA 11.8, PyTorch 2.0.1, and Python 3.9
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'buildx', 'build',
+      '-t', 'ubuntu22.04-cu118-conda:torch2.0.1-py39',
+      '-f', 'Dockerfile.cu118.torch2.0.1.py39',
+      '.'
+    ]
+
+  # Step 2: Build the GeneFace++ application image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'buildx', 'build',
+      '-t', 'genfaceplus:latest',
+      '-f', 'Dockerfile.genface',
+      '.'
+    ]
+
+  # Step 3: Tag the final image for Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'tag',
+      'genfaceplus:latest',
+      'gcr.io/$PROJECT_ID/genfaceplus:latest'
+    ]
+
+  # Step 4: Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push',
+      'gcr.io/$PROJECT_ID/genfaceplus:latest'
+    ]
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/genfaceplus:latest'
+
+# Build timeout (in seconds)
+timeout: '1800s'
+
+# Machine type for faster builds (optional)
+options:
+  machineType: 'E2_HIGHCPU_8' 
