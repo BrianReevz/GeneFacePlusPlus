@@ -1,7 +1,7 @@
 FROM ubuntu22.04-cu118-conda:torch2.0.1-py39 
 
 # Make RUN commands use the new environment:
-SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
+SHELL ["/root/miniconda3/bin/conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
 
 RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 

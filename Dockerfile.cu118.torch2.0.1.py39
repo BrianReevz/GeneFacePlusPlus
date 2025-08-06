@@ -25,25 +25,25 @@ RUN apt-get update -y && \
 ENV PATH="${HOME}/miniconda3/bin:${PATH}"
 ENV BASEPATH="${PATH}"
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && mkdir ${HOME}/.conda \
+    && mkdir -p ${HOME}/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
     && rm -f Miniconda3-latest-Linux-x86_64.sh \
-    && . ${HOME}/miniconda3/etc/profile.d/conda.sh \
-    && conda init bash
+    && ${HOME}/miniconda3/bin/conda init bash \
+    && echo "conda installed successfully" \
+    && ${HOME}/miniconda3/bin/conda --version
 
 # Make base conda environment
 ENV CONDA=pytorch
-RUN . ${HOME}/miniconda3/etc/profile.d/conda.sh \
-    && conda create -n "${CONDA}" python="${PYTHON_VERSION}" -y \
-    && conda init bash
+RUN ${HOME}/miniconda3/bin/conda create -n "${CONDA}" python="${PYTHON_VERSION}" -y \
+    && echo "conda environment created successfully" \
+    && ${HOME}/miniconda3/bin/conda env list
 ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${BASEPATH}"
 
 # Install pytorch
 ARG PYTORCH="2.0.1"
 ARG CUDA="118"
-RUN . ${HOME}/miniconda3/etc/profile.d/conda.sh \
-    && conda activate ${CONDA} \
-    && pip install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
+RUN ${HOME}/miniconda3/bin/conda run -n ${CONDA} python --version \
+    && ${HOME}/miniconda3/bin/conda run -n ${CONDA} pip install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
 
 # Set up git to support LFS, and to store credentials; useful for Huggingface Hub
 RUN git config --global credential.helper store && \
