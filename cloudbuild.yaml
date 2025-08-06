@@ -1,38 +1,15 @@
 steps:
-  # Step 0: Pull the required base images
+  # Pull base images and build in a single container
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'pull',
-      'nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04'
-    ]
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'pull',
-      'nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04'
-    ]
-
-  # Step 1: Build the base image with CUDA 11.8, PyTorch 2.0.1, and Python 3.9
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'buildx', 'build',
-      '--no-cache',
-      '--build-arg', 'BUILD_DATE=${BUILD_ID}',
-      '-t', 'ubuntu22.04-cu118-conda:torch2.0.1-py39',
-      '-f', 'Dockerfile.cu118.torch2.0.1.py39',
-      '.'
-    ]
-
-  # Step 2: Build the GeneFace++ application image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'buildx', 'build',
-      '--no-cache',
-      '--build-arg', 'BUILD_DATE=${BUILD_ID}',
-      '-t', 'genfaceplus:latest',
-      '-f', 'Dockerfile.genface',
-      '.'
-    ]
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Pulling base images..."
+        docker pull nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+        docker pull nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+        echo "Building GeneFace++ image..."
+        docker buildx build --no-cache --build-arg BUILD_DATE=${BUILD_ID} -t genfaceplus:latest -f Dockerfile.combined .
 
   # Step 3: Tag the final image for Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'

@@ -1,0 +1,73 @@
+# Multi-stage build for GeneFace++
+ARG CUDA_VERSION="11.8.0"
+ARG CUDNN_VERSION="8"
+ARG UBUNTU_VERSION="22.04"
+ARG BUILD_DATE="unknown"
+
+# Stage 1: Base image with CUDA, Python, and PyTorch
+FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
+
+ENV HOME /root
+WORKDIR $HOME
+ENV PYTHON_VERSION=3.9.18
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+
+# Install Python plus openssh, which is our minimum set of required packages.
+# Install useful command line utility software
+ARG APTPKGS="zsh wget tmux tldr nvtop vim neovim curl rsync net-tools less iputils-ping 7zip zip unzip"
+RUN apt-get update -y && \
+    apt-get install -y python3 python3-pip python3-venv && \
+    apt-get install -y --no-install-recommends openssh-server openssh-client git git-lfs && \
+    python3 -m pip install --upgrade pip && \
+    apt-get install -y --no-install-recommends $APTPKGS && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.9 directly with apt
+RUN apt-get update -y && \
+    apt-get install -y python3.9 python3.9-dev python3.9-venv python3-pip && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1 && \
+    echo "Python 3.9 installed successfully"
+
+# Install PyTorch with pip
+ARG PYTORCH="2.0.1"
+ARG CUDA="118"
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu118 && \
+    echo "PyTorch installed successfully" && \
+    python3 -c "import torch; print(f'PyTorch version: {torch.__version__}')"
+
+# Set up git to support LFS, and to store credentials; useful for Huggingface Hub
+RUN git config --global credential.helper store && \
+    git lfs install
+
+# Stage 2: GeneFace++ application
+FROM base AS genface
+
+# Install ffmpeg with apt
+RUN apt-get update -y && \
+    apt-get install -y ffmpeg && \
+    echo "ffmpeg installed successfully"
+
+# torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
+# And torch=2.1+cuda12.1 will cause error of torch-ngp 
+RUN python3 -m pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu118
+
+# install mmcv by mim
+RUN python3 -m pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
+    python3 -m pip install chardet cython openmim==0.3.9 && \ 
+    python3 -m mim install mmcv==2.1.0
+
+COPY . /workspace
+WORKDIR /workspace
+
+# other dependencies
+RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
+    python3 -m pip install -r docs/prepare_env/requirements.txt -v
+
+# install torch-ngp extension
+RUN bash docs/prepare_env/install_ext.sh
+
+# Default command
+CMD [ "tail -f /dev/null" ]
