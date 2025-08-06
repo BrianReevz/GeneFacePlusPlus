@@ -21,7 +21,7 @@ steps:
       '--cache-from', 'type=registry,ref=gcr.io/$PROJECT_ID/genfaceplus:latest',
       '--cache-to', 'type=registry,ref=gcr.io/$PROJECT_ID/genfaceplus:latest,mode=max',
       '-t', 'gcr.io/$PROJECT_ID/genfaceplus:latest',
-      '-t', 'gcr.io/$PROJECT_ID/genfaceplus:$TAG_NAME',
+      '-t', 'gcr.io/$PROJECT_ID/genfaceplus:$_TAG_NAME',
       '-f', 'Dockerfile.genface',
       '--push',
       '.'
@@ -31,7 +31,7 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/ubuntu22.04-cu118-conda:torch2.0.1-py39'
   - 'gcr.io/$PROJECT_ID/genfaceplus:latest'
-  - 'gcr.io/$PROJECT_ID/genfaceplus:$TAG_NAME'
+  - 'gcr.io/$PROJECT_ID/genfaceplus:$_TAG_NAME'
 
 # Build timeout (in seconds) - increased for large builds
 timeout: '3600s'

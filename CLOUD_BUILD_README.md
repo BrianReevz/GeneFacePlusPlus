@@ -18,6 +18,13 @@ This directory contains Google Cloud Build configurations for building the GeneF
 ### 1. Enable Required APIs
 
 ```bash
+# Check your gcloud version first
+gcloud version
+
+# Update gcloud if needed
+gcloud components update
+
+# Enable required APIs
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable containerregistry.googleapis.com
 ```
@@ -27,7 +34,7 @@ gcloud services enable containerregistry.googleapis.com
 #### Option A: Using gcloud CLI
 
 ```bash
-# Create a trigger for the basic configuration
+# First, connect your GitHub repository (if not already done)
 gcloud builds triggers create github \
   --repo-name=GeneFacePlusPlus \
   --repo-owner=YOUR_GITHUB_USERNAME \
@@ -42,6 +49,25 @@ gcloud builds triggers create github \
   --branch-pattern="^main$" \
   --build-config=cloudbuild-advanced.yaml \
   --name=geneface-advanced-build
+```
+
+**Alternative syntax (if the above doesn't work):**
+
+```bash
+# Create triggers using the newer syntax
+gcloud builds triggers create github \
+  --name=geneface-basic-build \
+  --repo-owner=YOUR_GITHUB_USERNAME \
+  --repo-name=GeneFacePlusPlus \
+  --branch-pattern="^main$" \
+  --build-config=cloudbuild.yaml
+
+gcloud builds triggers create github \
+  --name=geneface-advanced-build \
+  --repo-owner=YOUR_GITHUB_USERNAME \
+  --repo-name=GeneFacePlusPlus \
+  --branch-pattern="^main$" \
+  --build-config=cloudbuild-advanced.yaml
 ```
 
 #### Option B: Using Google Cloud Console
@@ -64,6 +90,9 @@ gcloud builds submit --config=cloudbuild.yaml .
 # Advanced build with custom tag
 gcloud builds submit --config=cloudbuild-advanced.yaml . \
   --substitutions=_TAG_NAME=v1.0.0
+
+# Or run with default tag (latest)
+gcloud builds submit --config=cloudbuild-advanced.yaml .
 ```
 
 ## Configuration Details
@@ -115,6 +144,12 @@ docker run -it --name geneface -p 7869:7860 --gpus all \
 2. **Memory Issues**: The advanced configuration uses E2_HIGHCPU_8 for better performance. If you encounter memory issues, consider using a different machine type.
 
 3. **Cache Issues**: If the build cache becomes corrupted, you can disable caching by removing the `--cache-from` and `--cache-to` flags.
+
+4. **Trigger Creation Issues**: If you get "invalid arguments" errors when creating triggers:
+   - Ensure you're using the latest version of gcloud: `gcloud components update`
+   - Try the alternative syntax provided above
+   - Use the Google Cloud Console method instead
+   - Check that your GitHub repository is properly connected to Cloud Build
 
 ### Monitoring Builds
 
