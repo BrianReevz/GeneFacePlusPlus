@@ -68,10 +68,23 @@ RUN apt-get update -y && \
     apt-get install -y libx11-dev libatlas-base-dev && \
     apt-get install -y libgtk-3-dev libboost-python-dev && \
     apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
+    apt-get install -y libopenblas-dev liblapack-dev && \
+    apt-get install -y libjpeg-dev libpng-dev && \
+    apt-get install -y libavcodec-dev libavformat-dev libswscale-dev && \
+    apt-get install -y libgstreamer-plugins-base1.0-dev && \
     echo "Build dependencies installed successfully"
 
-# Install Python dependencies
-RUN python3 -m pip install -r docs/prepare_env/requirements.txt -v
+# Install Python dependencies (excluding dlib for now)
+RUN python3 -m pip install -r docs/prepare_env/requirements.txt -v || \
+    (echo "Some packages failed, trying without dlib..." && \
+     grep -v "dlib" docs/prepare_env/requirements.txt | python3 -m pip install -r /dev/stdin -v)
+
+# Install dlib separately with specific flags and environment
+RUN python3 -m pip install dlib --no-cache-dir --verbose || \
+    (echo "Trying dlib with specific compiler flags..." && \
+     export CFLAGS="-O3" && \
+     export CXXFLAGS="-O3" && \
+     python3 -m pip install dlib --no-cache-dir --verbose)
 
 # install torch-ngp extension
 RUN bash docs/prepare_env/install_ext.sh
