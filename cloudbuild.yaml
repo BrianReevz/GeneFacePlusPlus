@@ -17,28 +17,32 @@ steps:
       '.'
     ]
 
-  # Step 3: Tag the final image for Container Registry
+  # Step 3: Tag the final image for Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'tag',
       'genfaceplus:latest',
-      'gcr.io/$PROJECT_ID/genfaceplus:latest'
+      '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest'
     ]
 
-  # Step 4: Push the image to Container Registry
+  # Step 4: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'push',
-      'gcr.io/$PROJECT_ID/genfaceplus:latest'
+      '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest'
     ]
 
-# Store images in Container Registry
+# Store images in Artifact Registry
 images:
-  - 'gcr.io/$PROJECT_ID/genfaceplus:latest'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest'
 
 # Build timeout (in seconds)
 timeout: '1800s'
 
 # Machine type for faster builds (optional)
 options:
-  machineType: 'E2_HIGHCPU_8' 
+  machineType: 'E2_HIGHCPU_8'
+
+# Substitutions for region
+substitutions:
+  _REGION: 'us-central1' 

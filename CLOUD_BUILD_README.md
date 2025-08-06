@@ -10,12 +10,12 @@ This directory contains Google Cloud Build configurations for building the GeneF
 ## Prerequisites
 
 1. **Google Cloud Project**: You need a Google Cloud project with Cloud Build API enabled
-2. **Container Registry**: Enable Container Registry API
+2. **Artifact Registry**: Enable Artifact Registry API
 3. **Permissions**: Ensure your account has the necessary permissions to create Cloud Build triggers
 
 ## Setup Instructions
 
-### 1. Enable Required APIs
+### 1. Enable Required APIs and Set Up Artifact Registry
 
 ```bash
 # Check your gcloud version first
@@ -26,7 +26,16 @@ gcloud components update
 
 # Enable required APIs
 gcloud services enable cloudbuild.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
+
+# Create an Artifact Registry repository (replace REGION with your preferred region)
+gcloud artifacts repositories create geneface-repo \
+  --repository-format=docker \
+  --location=REGION \
+  --description="GeneFace++ Docker images"
+
+# Configure Docker to authenticate to Artifact Registry
+gcloud auth configure-docker REGION-docker.pkg.dev
 ```
 
 ### 2. Set Up Cloud Build Trigger
@@ -87,11 +96,15 @@ You can also trigger builds manually:
 # Basic build
 gcloud builds submit --config=cloudbuild.yaml .
 
-# Advanced build with custom tag
+# Advanced build with custom tag and region
 gcloud builds submit --config=cloudbuild-advanced.yaml . \
-  --substitutions=_TAG_NAME=v1.0.0
+  --substitutions=_TAG_NAME=v1.0.0,_REGION=us-central1
 
-# Or run with default tag (latest)
+# Or run with default tag (latest) and custom region
+gcloud builds submit --config=cloudbuild-advanced.yaml . \
+  --substitutions=_REGION=us-central1
+
+# Or run with default values
 gcloud builds submit --config=cloudbuild-advanced.yaml .
 ```
 
@@ -126,13 +139,13 @@ After a successful build, you can pull and run the images:
 
 ```bash
 # Pull the image
-docker pull gcr.io/YOUR_PROJECT_ID/genfaceplus:latest
+docker pull REGION-docker.pkg.dev/YOUR_PROJECT_ID/geneface-repo/genfaceplus:latest
 
 # Run the container (as per the installation notes)
 docker run -it --name geneface -p 7869:7860 --gpus all \
   -v ~/.cache:/root/.cache \
   -v ~/workspace/GeneFacePlusPlus:/data/geneface/ \
-  gcr.io/YOUR_PROJECT_ID/genfaceplus:latest /bin/bash
+  REGION-docker.pkg.dev/YOUR_PROJECT_ID/geneface-repo/genfaceplus:latest /bin/bash
 ```
 
 ## Troubleshooting
@@ -170,9 +183,8 @@ gcloud builds log BUILD_ID
 
 ## Security Notes
 
-- The built images are stored in Google Container Registry
+- The built images are stored in Google Artifact Registry
 - Ensure your project has appropriate IAM permissions
-- Consider using Artifact Registry for newer projects
 - Review the Dockerfiles for any security concerns before building
 
 ## Next Steps

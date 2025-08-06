@@ -4,9 +4,9 @@ steps:
     args: [
       'buildx', 'build',
       '--platform', 'linux/amd64',
-      '--cache-from', 'type=registry,ref=gcr.io/$PROJECT_ID/ubuntu22.04-cu118-conda:torch2.0.1-py39',
-      '--cache-to', 'type=registry,ref=gcr.io/$PROJECT_ID/ubuntu22.04-cu118-conda:torch2.0.1-py39,mode=max',
-      '-t', 'gcr.io/$PROJECT_ID/ubuntu22.04-cu118-conda:torch2.0.1-py39',
+      '--cache-from', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39',
+      '--cache-to', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39,mode=max',
+      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39',
       '-t', 'ubuntu22.04-cu118-conda:torch2.0.1-py39',
       '-f', 'Dockerfile.cu118.torch2.0.1.py39',
       '--push',
@@ -18,20 +18,20 @@ steps:
     args: [
       'buildx', 'build',
       '--platform', 'linux/amd64',
-      '--cache-from', 'type=registry,ref=gcr.io/$PROJECT_ID/genfaceplus:latest',
-      '--cache-to', 'type=registry,ref=gcr.io/$PROJECT_ID/genfaceplus:latest,mode=max',
-      '-t', 'gcr.io/$PROJECT_ID/genfaceplus:latest',
-      '-t', 'gcr.io/$PROJECT_ID/genfaceplus:$_TAG_NAME',
+      '--cache-from', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest',
+      '--cache-to', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest,mode=max',
+      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest',
+      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:$_TAG_NAME',
       '-f', 'Dockerfile.genface',
       '--push',
       '.'
     ]
 
-# Store images in Container Registry
+# Store images in Artifact Registry
 images:
-  - 'gcr.io/$PROJECT_ID/ubuntu22.04-cu118-conda:torch2.0.1-py39'
-  - 'gcr.io/$PROJECT_ID/genfaceplus:latest'
-  - 'gcr.io/$PROJECT_ID/genfaceplus:$_TAG_NAME'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:$_TAG_NAME'
 
 # Build timeout (in seconds) - increased for large builds
 timeout: '3600s'
@@ -42,6 +42,7 @@ options:
   diskSizeGb: '100'
   logStreamingOption: 'STREAM_ON'
 
-# Substitutions for versioning
+# Substitutions for versioning and region
 substitutions:
-  _TAG_NAME: 'latest' 
+  _TAG_NAME: 'latest'
+  _REGION: 'us-central1' 
