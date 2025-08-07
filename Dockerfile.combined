@@ -73,22 +73,33 @@ RUN apt-get update -y && \
     apt-get install -y libavcodec-dev libavformat-dev libswscale-dev && \
     apt-get install -y libgstreamer-plugins-base1.0-dev && \
     echo "Build dependencies installed successfully" && \
-    echo "CMake version: $(cmake --version)" && \
-    echo "CMake location: $(which cmake)"
+    echo "System CMake version: $(cmake --version)" && \
+    echo "System CMake location: $(which cmake)"
+
+# Install cmake via pip to ensure Python can find it
+RUN python3 -m pip install cmake && \
+    echo "Pip CMake installed" && \
+    echo "Python CMake location: $(python3 -c 'import cmake; print(cmake.__file__)')" && \
+    echo "CMake executable: $(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)')"
 
 # Install Python dependencies (excluding dlib for now)
 RUN python3 -m pip install -r docs/prepare_env/requirements.txt -v || \
     (echo "Some packages failed, trying without dlib..." && \
      grep -v "dlib" docs/prepare_env/requirements.txt | python3 -m pip install -r /dev/stdin -v)
 
-# Install dlib separately with specific flags and environment
-RUN python3 -m pip install dlib --no-cache-dir --verbose || \
+# Install dlib with explicit cmake path
+RUN python3 -c 'import cmake; print(f"Using cmake from: {cmake.CMAKE_BIN_DIR}")' && \
+    export CMAKE_BIN_DIR=$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+    export PATH="$CMAKE_BIN_DIR:$PATH" && \
+    echo "Updated PATH with cmake: $PATH" && \
+    python3 -m pip install dlib --no-cache-dir --verbose || \
     (echo "Trying dlib with specific compiler flags..." && \
      export CFLAGS="-O3" && \
      export CXXFLAGS="-O3" && \
      python3 -m pip install dlib --no-cache-dir --verbose) || \
-    (echo "Trying with pip-installed cmake..." && \
-     python3 -m pip install cmake && \
+    (echo "Trying dlib with explicit cmake path..." && \
+     export CMAKE_BIN_DIR=$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+     export PATH="$CMAKE_BIN_DIR:$PATH" && \
      export CFLAGS="-O3" && \
      export CXXFLAGS="-O3" && \
      python3 -m pip install dlib --no-cache-dir --verbose)
