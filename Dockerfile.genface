@@ -1,28 +1,26 @@
-ARG BUILD_DATE="unknown"
 FROM ubuntu22.04-cu118-conda:torch2.0.1-py39 
 
-# Install ffmpeg with apt
-RUN apt-get update -y && \
-    apt-get install -y ffmpeg && \
-    echo "ffmpeg installed successfully"
+# Make RUN commands use the new environment:
+SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
+
+RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 
 # torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
 # And torch=2.1+cuda12.1 will cause error of torch-ngp 
-RUN python3 -m pip install torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 --extra-index-url https://download.pytorch.org/whl/cu118
+RUN conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia
 
 # install mmcv by mim
-RUN python3 -m pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
-    python3 -m pip install chardet cython openmim==0.3.9 && \ 
-    python3 -m mim install mmcv==2.1.0 
+RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
+    pip install chardet cython openmim==0.3.9 && \ 
+    mim install mmcv==2.1.0 
 
 COPY . /workspace
 WORKDIR /workspace
 
 # other dependencies
 RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
-    python3 -m pip install -r docs/prepare_env/requirements.txt -v
+    pip install -r docs/prepare_env/requirements.txt -v
 
 
 # install torch-ngp extension
 RUN bash docs/prepare_env/install_ext.sh 
-

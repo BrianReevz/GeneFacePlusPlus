@@ -1,7 +1,6 @@
 ARG CUDA_VERSION="11.8.0"
 ARG CUDNN_VERSION="8"
 ARG UBUNTU_VERSION="22.04"
-ARG BUILD_DATE="unknown"
 
 # Base NVidia CUDA Ubuntu image
 FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
@@ -22,20 +21,23 @@ RUN apt-get update -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Python 3.9 directly with apt
-RUN apt-get update -y && \
-    apt-get install -y python3.9 python3.9-dev python3.9-venv python3-pip && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1 && \
-    echo "Python 3.9 installed successfully"
+# Install Miniconda for Python env management
+ENV PATH="${HOME}/miniconda3/bin:${PATH}"
+ENV BASEPATH="${PATH}"
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && mkdir ${HOME}/.conda \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh
 
-# Install PyTorch with pip
+# Make base conda environment
+ENV CONDA=pytorch
+RUN conda create -n "${CONDA}" python="${PYTHON_VERSION}"
+ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${BASEPATH}"
+
+# Install pytorch
 ARG PYTORCH="2.0.1"
 ARG CUDA="118"
-RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu118 && \
-    echo "PyTorch installed successfully" && \
-    python3 -c "import torch; print(f'PyTorch version: {torch.__version__}')"
+RUN pip3 install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
 
 # Set up git to support LFS, and to store credentials; useful for Huggingface Hub
 RUN git config --global credential.helper store && \

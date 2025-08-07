@@ -9,7 +9,7 @@ steps:
         docker pull nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
         docker pull nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
         echo "Building GeneFace++ image..."
-        docker buildx build --no-cache --build-arg BUILD_DATE=${BUILD_ID} -t genfaceplus:latest -f Dockerfile.combined .
+        docker buildx build -t genfaceplus:0219 -f Dockerfile.genface .
 
   # Step 3: Tag the final image for Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
