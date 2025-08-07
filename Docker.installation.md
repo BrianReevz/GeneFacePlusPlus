@@ -9,7 +9,7 @@ Here the basic steps to run the application in Docker.
 docker pull nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 docker pull nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
-docker buildx build -t ubuntu22.04-cu118-conda:torch2.0.1-py39 -f Dockerfile.cu118.torch2.0.1.py39   .
+docker buildx build -t ubuntu22.04-cu118-conda:torch2.0.1-py39 -f Dockerfile.cu118.torch2.0.1.py39 .
 
 docker buildx build -t genfaceplus:0219 -f Dockerfile.genface .
 ```

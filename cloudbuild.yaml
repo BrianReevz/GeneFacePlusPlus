@@ -8,6 +8,8 @@ steps:
         echo "Pulling base images..."
         docker pull nvcr.io/nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
         docker pull nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+        echo "building base image for pytorch"
+        docker buildx build -t ubuntu22.04-cu118-conda:torch2.0.1-py39 -f Dockerfile.cu118.torch2.0.1.py39 .
         echo "Building GeneFace++ image..."
         docker buildx build -t genfaceplus:0219 -f Dockerfile.genface .
 
