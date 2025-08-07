@@ -22,28 +22,39 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Miniconda for Python env management
-ENV PATH="${HOME}/miniconda3/bin:${PATH}"
-ENV BASEPATH="${PATH}"
+ENV PATH="/root/miniconda3/bin:${PATH}"
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && mkdir ${HOME}/.conda \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /root/miniconda3 \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh \
+    && conda init bash
 
-# Make base conda environment
-ENV CONDA=pytorch
-RUN conda create -n "${CONDA}" python="${PYTHON_VERSION}"
-ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${BASEPATH}"
+# IMPORTANT: Use the bash login shell to make conda command available
+SHELL ["/bin/bash", "-l", "-c"]
 
-# Install pytorch
-ARG PYTORCH="2.0.1"
-ARG CUDA="118"
-RUN pip3 install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
+# --- CORRECTED SECTION ---
+# Create the environment AND install PyTorch in a single, clean step.
+# This is the recommended way.
+ENV CONDA_ENV_NAME=pytorch
+ARG PYTHON_VERSION="3.9" # Note: No need for the full patch version usually
+ARG PYTORCH_VERSION="2.0.1"
+ARG CUDA_VERSION_SHORT="11.8" 
+# Match this with your conda channel's CUDA version
 
-# Set up git to support LFS, and to store credentials; useful for Huggingface Hub
+RUN conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} \
+    pytorch==${PYTORCH_VERSION} \
+    pytorch-cuda=${CUDA_VERSION_SHORT} \
+    -c pytorch -c nvidia -y
+
+# Tell subsequent commands to use the new environment's shell
+ENV PATH="/root/miniconda3/envs/${CONDA_ENV_NAME}/bin:${PATH}"
+
+# Example of how to run a pip command correctly inside the environment
+RUN pip install --no-cache-dir numpy pandas
+
+# Set up git to support LFS...
+# (The rest of your file is fine)
 RUN git config --global credential.helper store && \
     git lfs install
-
-#COPY --chmod=755 start-ssh-only.sh /start.sh
 
 WORKDIR /workspace
 
