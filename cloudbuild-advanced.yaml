@@ -14,6 +14,8 @@ steps:
 
   # Step 1: Build the base image with CUDA 11.8, PyTorch 2.0.1, and Python 3.9
   - name: 'gcr.io/cloud-builders/docker'
+    env:
+    - 'DOCKER_BUILDKIT=1'
     args: [
       'buildx', 'build',
       '--platform', 'linux/amd64',
@@ -28,6 +30,8 @@ steps:
 
   # Step 2: Build the GeneFace++ application image
   - name: 'gcr.io/cloud-builders/docker'
+    env:
+    - 'DOCKER_BUILDKIT=1'
     args: [
       'buildx', 'build',
       '--platform', 'linux/amd64',
