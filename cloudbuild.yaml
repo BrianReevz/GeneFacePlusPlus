@@ -12,6 +12,9 @@ steps:
         docker buildx build -t ubuntu22.04-cu118-conda:torch2.0.1-py39 -f Dockerfile.cu118.torch2.0.1.py39 .
         echo "Building GeneFace++ image..."
         docker buildx build -t genfaceplus:0219 -f Dockerfile.genface .
+    timeout: '3600s'
+
+
 
   # Step 3: Tag the final image for Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'

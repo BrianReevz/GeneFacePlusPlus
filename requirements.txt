@@ -1,0 +1,8 @@
+# Build-time dependencies for other packages
+cmake
+lit
+
+# Your application's Python packages
+numpy
+pandas
+# ...add other packages like dlib, fastapi, etc. here

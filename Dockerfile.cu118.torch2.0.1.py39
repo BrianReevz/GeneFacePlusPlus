@@ -1,3 +1,4 @@
+# ARG declarations at the top are great
 ARG CUDA_VERSION="11.8.0"
 ARG CUDNN_VERSION="8"
 ARG UBUNTU_VERSION="22.04"
@@ -5,57 +6,68 @@ ARG UBUNTU_VERSION="22.04"
 # Base NVidia CUDA Ubuntu image
 FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
 
+# Set up environment variables
 ENV HOME /root
 WORKDIR $HOME
 ENV PYTHON_VERSION=3.9.18
 ENV PATH="/usr/local/cuda/bin:${PATH}"
-#
-# Install Python plus openssh, which is our minimum set of required packages.
-# Install useful command line utility software
+
+# == STEP 1: Install all system dependencies ==
+# == STEP 1: Install all system dependencies ==
+# This layer changes infrequently. It installs OS packages and build tools.
+# It now includes the C++ dev libraries required by dlib. ✅
 ARG APTPKGS="zsh wget tmux tldr nvtop vim neovim curl rsync net-tools less iputils-ping 7zip zip unzip"
 RUN apt-get update -y && \
-    apt-get install -y python3 python3-pip python3-venv && \
-    apt-get install -y --no-install-recommends openssh-server openssh-client git git-lfs && \
-    python3 -m pip install --upgrade pip && \
-    apt-get install -y --no-install-recommends $APTPKGS && \
+    apt-get install -y --no-install-recommends \
+    # Core build tools
+    cmake \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    # Python and Git
+    python3 python3-pip python3-venv \
+    openssh-server openssh-client git git-lfs \
+    # Dlib C++ dependencies
+    libx11-dev \
+    libjpeg-dev \
+    libpng-dev \
+    # Utility packages
+    $APTPKGS && \
+    # Clean up to reduce image size
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Miniconda for Python env management
+# == STEP 2: Install and configure Conda Environment ==
+# This layer also changes infrequently. It creates your core PyTorch environment.
 ENV PATH="/root/miniconda3/bin:${PATH}"
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p /root/miniconda3 \
     && rm -f Miniconda3-latest-Linux-x86_64.sh \
-    && conda init bash
+    && conda init bash \
+    && conda tos accept --override-channels --channel defaults \
+    && conda update -n base conda -y
 
-# IMPORTANT: Use the bash login shell to make conda command available
-SHELL ["/bin/bash", "-l", "-c"]
-
-# --- CORRECTED SECTION ---
-# Create the environment AND install PyTorch in a single, clean step.
-# This is the recommended way.
 ENV CONDA_ENV_NAME=pytorch
-ARG PYTHON_VERSION="3.9" # Note: No need for the full patch version usually
-ARG PYTORCH_VERSION="2.0.1"
-ARG CUDA_VERSION_SHORT="11.8" 
-# Match this with your conda channel's CUDA version
+RUN conda create -n ${CONDA_ENV_NAME} python=3.9 \
+    pytorch==2.0.1 \
+    pytorch-cuda=11.8 \
+    -c pytorch -c nvidia -y \
+    && conda install -n ${CONDA_ENV_NAME} intel-openmp=2023 -y
 
-RUN conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} \
-    pytorch==${PYTORCH_VERSION} \
-    pytorch-cuda=${CUDA_VERSION_SHORT} \
-    -c pytorch -c nvidia -y
-
-# Tell subsequent commands to use the new environment's shell
+# Activate the Conda environment for all subsequent commands
 ENV PATH="/root/miniconda3/envs/${CONDA_ENV_NAME}/bin:${PATH}"
 
-# Example of how to run a pip command correctly inside the environment
-RUN pip install --no-cache-dir numpy pandas
+# == STEP 3: Install Python dependencies ==
+# This layer changes more often. By copying only requirements.txt, Docker can
+# reuse the cache from steps 1 & 2 if only Python packages change.
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-# Set up git to support LFS...
-# (The rest of your file is fine)
-RUN git config --global credential.helper store && \
-    git lfs install
+# == STEP 4: Copy your application code ==
+# This is the most frequently changed layer, so it comes last.
+# COPY . /workspace/
 
+# Final configuration
 WORKDIR /workspace
-
-CMD [ "tail -f /dev/null" ]
+RUN git config --global credential.helper store && git lfs install
+CMD [ "tail", "-f", "/dev/null" ]

@@ -1,0 +1,75 @@
+ARG CUDA_VERSION="11.8.0"
+ARG CUDNN_VERSION="8"
+ARG UBUNTU_VERSION="22.04"
+
+# Base NVidia CUDA Ubuntu image
+FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
+
+ENV HOME /root
+WORKDIR $HOME
+ENV PYTHON_VERSION=3.9.18
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+#
+# Install Python plus openssh, which is our minimum set of required packages.
+# Install useful command line utility software
+ARG APTPKGS="zsh wget tmux tldr nvtop vim neovim curl rsync net-tools less iputils-ping 7zip zip unzip"
+RUN apt-get update -y && \
+    apt-get install -y python3 python3-pip python3-venv && \
+    apt-get install -y --no-install-recommends openssh-server openssh-client git git-lfs && \
+    python3 -m pip install --upgrade pip && \
+    apt-get install -y --no-install-recommends \
+    cmake \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    $APTPKGS && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Miniconda for Python env management
+ENV PATH="/root/miniconda3/bin:${PATH}"
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /root/miniconda3 \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh \
+    && conda init bash
+
+# --- CORRECTED SECTION ---
+# Create the environment AND install PyTorch in a single, clean step.
+# This is the recommended way.
+ENV CONDA_ENV_NAME=pytorch
+ARG PYTHON_VERSION="3.9" # Note: No need for the full patch version usually
+ARG PYTORCH_VERSION="2.0.1"
+ARG CUDA_VERSION_SHORT="11.8" 
+# Match this with your conda channel's CUDA version
+# IMPORTANT: Use the bash login shell to make conda command available
+# 1. Directly accept the Terms of Service for the default Anaconda channels.
+# This command is designed for non-interactive use in scripts and builds. ✅
+RUN conda tos accept --override-channels --channel defaults
+
+# 2. Update conda itself. This will now safely pull the update from conda-forge.
+RUN conda update -n base conda -y
+
+RUN conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} \
+    pytorch==${PYTORCH_VERSION} \
+    pytorch-cuda=${CUDA_VERSION_SHORT} \
+    -c pytorch -c nvidia -y
+# --- ADD THIS LINE TO FIX THE SYMBOL ERROR ---
+# This error is caused by a version mismatch with Intel's OpenMP library.
+# Downgrading it to a known compatible version resolves the undefined symbol. ✅
+RUN conda install -n pytorch intel-openmp=2023 -y
+
+# Tell subsequent commands to use the new environment's shell
+ENV PATH="/root/miniconda3/envs/${CONDA_ENV_NAME}/bin:${PATH}"
+# reinstall cmake and lit so conda can see it.. I guess. 
+RUN pip install cmake lit
+# Example of how to run a pip command correctly inside the environment
+RUN pip install --no-cache-dir numpy pandas
+
+# Set up git to support LFS...
+# (The rest of your file is fine)
+RUN git config --global credential.helper store && \
+    git lfs install
+
+WORKDIR /workspace
+
+CMD [ "tail -f /dev/null" ]

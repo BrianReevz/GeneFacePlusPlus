@@ -1,26 +1,47 @@
-FROM ubuntu22.04-cu118-conda:torch2.0.1-py39 
+# Start with your base image
+FROM ubuntu24.04-cu118-conda:torch2.0.1-py39 
 
-# Make RUN commands use the new environment:
-SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
+# ================== THIS IS THE FIX ==================
+#
+# DELETE this line. It is breaking the build environment.
+# SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
+#
+# ADD this line instead to correctly activate the environment.
+# Note: The conda path in this base image might be /opt/conda/.
+ENV PATH /opt/conda/envs/pytorch/bin:$PATH
+#
+# ======================================================
+# 1. Create a NEW conda environment with a specific Python version (e.g., 3.10)
+#    This isolates your build from the base image's pinned Python 3.13.
+RUN conda create -n genface_env python=3.10 -y
 
+# 2. Activate the new environment for all future commands.
+ENV PATH /opt/conda/envs/genface_env/bin:$PATH
 RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 
-# torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
-# And torch=2.1+cuda12.1 will cause error of torch-ngp 
-RUN conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia
+# Re-installing PyTorch here is redundant if it's already in the base image, but safe.
+RUN conda install -n genface_env pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia -y
 
 # install mmcv by mim
 RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
-    pip install chardet cython openmim==0.3.9 && \ 
+    pip install chardet cython openmim==0.3.9 && \
     mim install mmcv==2.1.0 
 
 COPY . /workspace
 WORKDIR /workspace
 
-# other dependencies
-RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
-    pip install -r docs/prepare_env/requirements.txt -v
+# These commands will now run in a unified environment and succeed
+#RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
+#    pip install -r docs/prepare_env/requirements.txt -v
+# First, install only the system libraries using apt-get.
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends libasound2-dev portaudio19-dev libgl1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
+# Second, install the Python packages using pip in a separate step.
+# This now runs in an environment where it can find build tools.
+RUN pip install -r docs/prepare_env/requirements.txt -v
 
 # install torch-ngp extension
-RUN bash docs/prepare_env/install_ext.sh 
+RUN bash docs/prepare_env/install_ext.sh
