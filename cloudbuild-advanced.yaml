@@ -1,5 +1,5 @@
 steps:
-  # Step 0: Pull the required base images
+  # Step 0: Pull base images
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'pull',
@@ -12,43 +12,46 @@ steps:
       'nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04'
     ]
 
-  # Step 1: Build the base image with CUDA 11.8, PyTorch 2.0.1, and Python 3.9
+  # Step 1: Build the base image with inline cache
   - name: 'gcr.io/cloud-builders/docker'
-    env:
-    - 'DOCKER_BUILDKIT=1'
-    args: [
-      'buildx', 'build',
-      '--platform', 'linux/amd64',
-      '--cache-from', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39',
-      '--cache-to', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39,mode=max',
-      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39',
-      '-t', 'ubuntu22.04-cu118-conda:torch2.0.1-py39',
-      '-f', 'Dockerfile.cu118.torch2.0.1.py39',
-      '--push',
-      '.'
-    ]
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Building base image with inline cache..."
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39 \
+          -t $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39 \
+          -t ubuntu22.04-cu118-conda:torch2.0.1-py39 \
+          -f Dockerfile.cu118.torch2.0.1.py39 \
+          .
+        echo "Pushing base image..."
+        docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39
 
-  # Step 2: Build the GeneFace++ application image
+  # Step 2: Build the GeneFace++ application image with inline cache
   - name: 'gcr.io/cloud-builders/docker'
-    env:
-    - 'DOCKER_BUILDKIT=1'
-    args: [
-      'buildx', 'build',
-      '--platform', 'linux/amd64',
-      '--cache-from', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest',
-      '--cache-to', 'type=registry,ref=$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest,mode=max',
-      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest',
-      '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:$_TAG_NAME',
-      '-f', 'Dockerfile.genface',
-      '--push',
-      '.'
-    ]
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Building GeneFace++ image with inline cache..."
+        docker build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest \
+          -t $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest \
+          -t $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME \
+          -f Dockerfile.genface \
+          .
+        echo "Pushing GeneFace++ image..."
+        docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest
+        docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME
 
 # Store images in Artifact Registry
 images:
   - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39'
-  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:latest'
-  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genfaceplus:$_TAG_NAME'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME'
 
 # Build timeout (in seconds) - increased for large builds
 timeout: '3600s'

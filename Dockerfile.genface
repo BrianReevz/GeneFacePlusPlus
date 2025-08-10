@@ -1,5 +1,8 @@
 # Start with your base image
-FROM ubuntu24.04-cu118-conda:torch2.0.1-py39 
+FROM ubuntu22.04-cu118-conda:torch2.0.1-py39
+
+# Enable BuildKit inline cache
+ARG BUILDKIT_INLINE_CACHE=1 
 
 # ================== THIS IS THE FIX ==================
 #
