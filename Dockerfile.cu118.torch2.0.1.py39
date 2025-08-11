@@ -58,11 +58,9 @@ RUN conda create -n ${CONDA_ENV_NAME} python=3.9 \
 # Activate the Conda environment for all subsequent commands
 ENV PATH="/root/miniconda3/envs/${CONDA_ENV_NAME}/bin:${PATH}"
 
-# == STEP 3: Install Python dependencies ==
-# This layer changes more often. By copying only requirements.txt, Docker can
-# reuse the cache from steps 1 & 2 if only Python packages change.
-COPY requirements.txt .
-RUN /root/miniconda3/envs/pytorch/bin/pip install -r requirements.txt
+# == STEP 3: Install only essential Python packages ==
+# Install minimal packages needed for the base image
+RUN /root/miniconda3/envs/pytorch/bin/python -m pip install numpy pandas
 
 # == STEP 4: Copy your application code ==
 # This is the most frequently changed layer, so it comes last.
