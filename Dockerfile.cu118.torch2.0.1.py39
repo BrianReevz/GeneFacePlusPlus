@@ -62,7 +62,7 @@ ENV PATH="/root/miniconda3/envs/${CONDA_ENV_NAME}/bin:${PATH}"
 # This layer changes more often. By copying only requirements.txt, Docker can
 # reuse the cache from steps 1 & 2 if only Python packages change.
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN /root/miniconda3/envs/pytorch/bin/pip install -r requirements.txt
 
 # == STEP 4: Copy your application code ==
 # This is the most frequently changed layer, so it comes last.
