@@ -4,6 +4,15 @@ FROM ubuntu22.04-cu118-conda:torch2.0.1-py39
 # Enable BuildKit inline cache
 ARG BUILDKIT_INLINE_CACHE=1 
 
+# Set build optimizations for faster C++ compilation
+ENV MAKEFLAGS="-j$(nproc)"
+ENV CMAKE_BUILD_PARALLEL_LEVEL="$(nproc)"
+ENV DEBIAN_FRONTEND="noninteractive"
+# Additional optimizations for torch extensions
+ENV TORCH_CUDA_ARCH_LIST="6.0;6.1;7.0;7.5;8.0;8.6"
+ENV FORCE_CUDA="1"
+ENV MAX_JOBS="$(nproc)"
+
 # ================== THIS IS THE FIX ==================
 #
 # DELETE this line. It is breaking the build environment.
@@ -34,9 +43,6 @@ RUN /root/miniconda3/envs/genface_env/bin/pip install "git+https://github.com/fa
 COPY . /workspace
 WORKDIR /workspace
 
-# These commands will now run in a unified environment and succeed
-#RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
-#    pip install -r docs/prepare_env/requirements.txt -v
 # First, install comprehensive build dependencies for dlib and other packages
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
@@ -62,16 +68,18 @@ ENV CUDA_ROOT=/usr/local/cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# Install Python packages in the correct conda environment using direct pip
+# Try to install pre-built dlib first (much faster than compilation)
+RUN /root/miniconda3/envs/genface_env/bin/pip install --only-binary=all dlib || \
+    (echo "Pre-built dlib not available, will compile from source..." && \
+     /root/miniconda3/envs/genface_env/bin/pip install dlib --no-cache-dir --verbose)
+
+# Install remaining Python packages, excluding dlib if it was already installed
 RUN /root/miniconda3/envs/genface_env/bin/pip install -r docs/prepare_env/requirements.txt -v || \
     (echo 'Some packages failed, trying without dlib...' && \
      grep -v 'dlib' docs/prepare_env/requirements.txt | /root/miniconda3/envs/genface_env/bin/pip install -r /dev/stdin -v)
 
-# Install dlib separately in the pytorch environment where cmake is available
-RUN /root/miniconda3/envs/pytorch/bin/python -m pip install dlib --no-cache-dir --verbose
-
-# Verify dlib installation in pytorch environment
-RUN /root/miniconda3/envs/pytorch/bin/python -c "import dlib; print('dlib installed successfully in pytorch environment')"
+# Verify dlib installation in genface environment
+RUN /root/miniconda3/envs/genface_env/bin/python -c "import dlib; print('dlib installed successfully in genface environment')"
 
 # Verify CUDA and PyTorch versions match
 RUN /root/miniconda3/envs/genface_env/bin/python -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device count: {torch.cuda.device_count()}')"

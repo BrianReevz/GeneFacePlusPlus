@@ -58,14 +58,22 @@ images:
   - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest'
   - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME'
 
-# Build timeout (in seconds) - increased for large builds
-timeout: '3600s'
+# Build timeout (in seconds) - increased for large builds with C++ compilation
+timeout: '7200s'
 
-# Machine type for faster builds
+# Machine type for faster builds - upgraded to handle C++ compilation better
 options:
-  machineType: 'E2_HIGHCPU_8'
+  machineType: 'E2_HIGHCPU_32'  # More CPU cores for parallel compilation
   diskSizeGb: '100'
   logStreamingOption: 'STREAM_ON'
+  # Add build optimizations for C++ compilation
+  env:
+    - 'DEBIAN_FRONTEND=noninteractive'
+    - 'MAKEFLAGS=-j$(nproc)'
+    - 'CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)'
+    - 'TORCH_CUDA_ARCH_LIST=6.0;6.1;7.0;7.5;8.0;8.6'
+    - 'FORCE_CUDA=1'
+    - 'MAX_JOBS=$(nproc)'
 
 # Substitutions for versioning and region
 substitutions:
