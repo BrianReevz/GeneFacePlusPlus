@@ -52,9 +52,9 @@ RUN apt-get update -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install cmake via pip to ensure Python can find it
-RUN pip install cmake && \
-    echo "Pip CMake installed successfully"
+# Install cmake via pip in the pytorch environment to ensure dlib can find it
+RUN /root/miniconda3/envs/pytorch/bin/python -m pip install cmake && \
+    echo "Pip CMake installed in pytorch environment successfully"
 
 # Set CUDA environment variables for torch-ngp extension compilation
 ENV CUDA_HOME=/usr/local/cuda
@@ -70,25 +70,11 @@ RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
     (echo 'Some packages failed, trying without dlib...' && \
      grep -v 'dlib' docs/prepare_env/requirements.txt | pip install -r /dev/stdin -v)"
 
-# Install dlib with explicit cmake path and compiler optimization
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
-    conda activate genface_env && \
-    echo 'Installing dlib...' && \
-    python3 -c 'import cmake; print(f\"Using cmake from: {cmake.CMAKE_BIN_DIR}\")' && \
-    export CMAKE_BIN_DIR=\$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
-    export PATH=\"\$CMAKE_BIN_DIR:\$PATH\" && \
-    echo \"Updated PATH with cmake: \$PATH\" && \
-    pip install dlib --no-cache-dir --verbose || \
-    (echo 'Trying dlib with specific compiler flags...' && \
-     export CFLAGS='-O3' && \
-     export CXXFLAGS='-O3' && \
-     pip install dlib --no-cache-dir --verbose) || \
-    (echo 'Trying dlib with explicit cmake path...' && \
-     export CMAKE_BIN_DIR=\$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
-     export PATH=\"\$CMAKE_BIN_DIR:\$PATH\" && \
-     export CFLAGS='-O3' && \
-     export CXXFLAGS='-O3' && \
-     pip install dlib --no-cache-dir --verbose)"
+# Install dlib separately in the pytorch environment where cmake is available
+RUN /root/miniconda3/envs/pytorch/bin/python -m pip install dlib --no-cache-dir --verbose
+
+# Verify dlib installation in pytorch environment
+RUN /root/miniconda3/envs/pytorch/bin/python -c "import dlib; print('dlib installed successfully in pytorch environment')"
 
 # Verify CUDA and PyTorch versions match
 RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
