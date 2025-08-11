@@ -10,8 +10,8 @@ ARG BUILDKIT_INLINE_CACHE=1
 # SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
 #
 # ADD this line instead to correctly activate the environment.
-# Note: The conda path in this base image might be /opt/conda/.
-ENV PATH /opt/conda/envs/pytorch/bin:$PATH
+# Note: The conda path in this base image is /root/miniconda3/.
+ENV PATH /root/miniconda3/envs/pytorch/bin:$PATH
 #
 # ======================================================
 # 1. Create a NEW conda environment with a specific Python version (e.g., 3.10)
@@ -19,7 +19,7 @@ ENV PATH /opt/conda/envs/pytorch/bin:$PATH
 RUN conda create -n genface_env python=3.10 -y
 
 # 2. Activate the new environment for all future commands.
-ENV PATH /opt/conda/envs/genface_env/bin:$PATH
+ENV PATH /root/miniconda3/envs/genface_env/bin:$PATH
 RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 
 # Install PyTorch with exact CUDA 11.8 version to match system CUDA
@@ -27,9 +27,9 @@ RUN conda install -n genface_env pytorch==2.0.1 torchvision==0.15.2 torchaudio==
     echo "PyTorch installed with CUDA 11.8"
 
 # install mmcv by mim
-RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
-    pip install chardet cython openmim==0.3.9 && \
-    mim install mmcv==2.1.0 
+RUN /root/miniconda3/envs/genface_env/bin/pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
+    /root/miniconda3/envs/genface_env/bin/pip install chardet cython openmim==0.3.9 && \
+    /root/miniconda3/envs/genface_env/bin/pip install mmcv==2.1.0 
 
 COPY . /workspace
 WORKDIR /workspace
@@ -62,13 +62,10 @@ ENV CUDA_ROOT=/usr/local/cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# Install Python packages in the correct conda environment using shell activation
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
-    conda activate genface_env && \
-    echo 'Installing Python packages in genface_env...' && \
-    pip install -r docs/prepare_env/requirements.txt -v || \
+# Install Python packages in the correct conda environment using direct pip
+RUN /root/miniconda3/envs/genface_env/bin/pip install -r docs/prepare_env/requirements.txt -v || \
     (echo 'Some packages failed, trying without dlib...' && \
-     grep -v 'dlib' docs/prepare_env/requirements.txt | pip install -r /dev/stdin -v)"
+     grep -v 'dlib' docs/prepare_env/requirements.txt | /root/miniconda3/envs/genface_env/bin/pip install -r /dev/stdin -v)
 
 # Install dlib separately in the pytorch environment where cmake is available
 RUN /root/miniconda3/envs/pytorch/bin/python -m pip install dlib --no-cache-dir --verbose
@@ -77,11 +74,7 @@ RUN /root/miniconda3/envs/pytorch/bin/python -m pip install dlib --no-cache-dir 
 RUN /root/miniconda3/envs/pytorch/bin/python -c "import dlib; print('dlib installed successfully in pytorch environment')"
 
 # Verify CUDA and PyTorch versions match
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
-    conda activate genface_env && \
-    python3 -c \"import torch; print(f'PyTorch CUDA version: {torch.version.cuda}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device count: {torch.cuda.device_count()}')\""
+RUN /root/miniconda3/envs/genface_env/bin/python -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device count: {torch.cuda.device_count()}')"
 
 # install torch-ngp extension with proper CUDA environment
-RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
-    conda activate genface_env && \
-    bash docs/prepare_env/install_ext.sh"
+RUN /root/miniconda3/envs/genface_env/bin/bash docs/prepare_env/install_ext.sh
