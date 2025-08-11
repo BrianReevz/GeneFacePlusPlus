@@ -56,36 +56,46 @@ RUN apt-get update -y && \
 RUN pip install cmake && \
     echo "Pip CMake installed successfully"
 
-# Second, install Python packages (excluding dlib for now) using conda environment
-RUN conda run -n genface_env pip install -r docs/prepare_env/requirements.txt -v || \
-    (echo "Some packages failed, trying without dlib..." && \
-     grep -v "dlib" docs/prepare_env/requirements.txt | conda run -n genface_env pip install -r /dev/stdin -v)
-
-# Install dlib with explicit cmake path and compiler optimization using conda environment
-RUN conda run -n genface_env python3 -c 'import cmake; print(f"Using cmake from: {cmake.CMAKE_BIN_DIR}")' && \
-    export CMAKE_BIN_DIR=$(conda run -n genface_env python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
-    export PATH="$CMAKE_BIN_DIR:$PATH" && \
-    echo "Updated PATH with cmake: $PATH" && \
-    conda run -n genface_env pip install dlib --no-cache-dir --verbose || \
-    (echo "Trying dlib with specific compiler flags..." && \
-     export CFLAGS="-O3" && \
-     export CXXFLAGS="-O3" && \
-     conda run -n genface_env pip install dlib --no-cache-dir --verbose) || \
-    (echo "Trying dlib with explicit cmake path..." && \
-     export CMAKE_BIN_DIR=$(conda run -n genface_env python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
-     export PATH="$CMAKE_BIN_DIR:$PATH" && \
-     export CFLAGS="-O3" && \
-     export CXXFLAGS="-O3" && \
-     conda run -n genface_env pip install dlib --no-cache-dir --verbose)
-
 # Set CUDA environment variables for torch-ngp extension compilation
 ENV CUDA_HOME=/usr/local/cuda
 ENV CUDA_ROOT=/usr/local/cuda
 ENV PATH=/usr/local/cuda/bin:$PATH
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
-# Verify CUDA and PyTorch versions match using conda environment
-RUN conda run -n genface_env python3 -c "import torch; print(f'PyTorch CUDA version: {torch.version.cuda}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device count: {torch.cuda.device_count()}')"
+# Install Python packages in the correct conda environment using shell activation
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+    conda activate genface_env && \
+    echo 'Installing Python packages in genface_env...' && \
+    pip install -r docs/prepare_env/requirements.txt -v || \
+    (echo 'Some packages failed, trying without dlib...' && \
+     grep -v 'dlib' docs/prepare_env/requirements.txt | pip install -r /dev/stdin -v)"
 
-# install torch-ngp extension with proper CUDA environment using conda environment
-RUN conda run -n genface_env bash docs/prepare_env/install_ext.sh
+# Install dlib with explicit cmake path and compiler optimization
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+    conda activate genface_env && \
+    echo 'Installing dlib...' && \
+    python3 -c 'import cmake; print(f\"Using cmake from: {cmake.CMAKE_BIN_DIR}\")' && \
+    export CMAKE_BIN_DIR=\$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+    export PATH=\"\$CMAKE_BIN_DIR:\$PATH\" && \
+    echo \"Updated PATH with cmake: \$PATH\" && \
+    pip install dlib --no-cache-dir --verbose || \
+    (echo 'Trying dlib with specific compiler flags...' && \
+     export CFLAGS='-O3' && \
+     export CXXFLAGS='-O3' && \
+     pip install dlib --no-cache-dir --verbose) || \
+    (echo 'Trying dlib with explicit cmake path...' && \
+     export CMAKE_BIN_DIR=\$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+     export PATH=\"\$CMAKE_BIN_DIR:\$PATH\" && \
+     export CFLAGS='-O3' && \
+     export CXXFLAGS='-O3' && \
+     pip install dlib --no-cache-dir --verbose)"
+
+# Verify CUDA and PyTorch versions match
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+    conda activate genface_env && \
+    python3 -c \"import torch; print(f'PyTorch CUDA version: {torch.version.cuda}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'CUDA device count: {torch.cuda.device_count()}')\""
+
+# install torch-ngp extension with proper CUDA environment
+RUN /bin/bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+    conda activate genface_env && \
+    bash docs/prepare_env/install_ext.sh"
