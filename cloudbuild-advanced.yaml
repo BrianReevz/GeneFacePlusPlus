@@ -36,16 +36,21 @@ steps:
       - '-c'
       - |
         echo "Building GeneFace++ image with inline cache..."
-        docker build \
+        if docker build \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
           --cache-from $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest \
           -t $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest \
           -t $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME \
           -f Dockerfile.genface \
-          .
-        echo "Pushing GeneFace++ image..."
-        docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest
-        docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME
+          .; then
+          echo "Build successful! Pushing GeneFace++ image..."
+          docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest
+          docker push $_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME
+          echo "Push completed successfully!"
+        else
+          echo "Build failed! Cannot push image."
+          exit 1
+        fi
 
 # Store images in Artifact Registry
 images:

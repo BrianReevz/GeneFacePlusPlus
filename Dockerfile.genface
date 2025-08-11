@@ -36,15 +36,46 @@ WORKDIR /workspace
 # These commands will now run in a unified environment and succeed
 #RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
 #    pip install -r docs/prepare_env/requirements.txt -v
-# First, install only the system libraries using apt-get.
+# First, install comprehensive build dependencies for dlib and other packages
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends libasound2-dev portaudio19-dev libgl1 && \
+    apt-get install -y --no-install-recommends \
+    # Core build tools
+    build-essential cmake pkg-config \
+    # Dlib C++ dependencies
+    libx11-dev libatlas-base-dev libgtk-3-dev libboost-python-dev \
+    libasound2-dev portaudio19-dev libgl1 \
+    libopenblas-dev liblapack-dev \
+    libjpeg-dev libpng-dev \
+    libavcodec-dev libavformat-dev libswscale-dev \
+    libgstreamer-plugins-base1.0-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Second, install the Python packages using pip in a separate step.
-# This now runs in an environment where it can find build tools.
-RUN pip install -r docs/prepare_env/requirements.txt -v
+# Install cmake via pip to ensure Python can find it
+RUN pip install cmake && \
+    echo "Pip CMake installed successfully"
+
+# Second, install Python packages (excluding dlib for now)
+RUN pip install -r docs/prepare_env/requirements.txt -v || \
+    (echo "Some packages failed, trying without dlib..." && \
+     grep -v "dlib" docs/prepare_env/requirements.txt | pip install -r /dev/stdin -v)
+
+# Install dlib with explicit cmake path and compiler optimization
+RUN python3 -c 'import cmake; print(f"Using cmake from: {cmake.CMAKE_BIN_DIR}")' && \
+    export CMAKE_BIN_DIR=$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+    export PATH="$CMAKE_BIN_DIR:$PATH" && \
+    echo "Updated PATH with cmake: $PATH" && \
+    pip install dlib --no-cache-dir --verbose || \
+    (echo "Trying dlib with specific compiler flags..." && \
+     export CFLAGS="-O3" && \
+     export CXXFLAGS="-O3" && \
+     pip install dlib --no-cache-dir --verbose) || \
+    (echo "Trying dlib with explicit cmake path..." && \
+     export CMAKE_BIN_DIR=$(python3 -c 'import cmake; print(cmake.CMAKE_BIN_DIR)') && \
+     export PATH="$CMAKE_BIN_DIR:$PATH" && \
+     export CFLAGS="-O3" && \
+     export CXXFLAGS="-O3" && \
+     pip install dlib --no-cache-dir --verbose)
 
 # install torch-ngp extension
 RUN bash docs/prepare_env/install_ext.sh
