@@ -59,7 +59,7 @@ images:
   - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:$_TAG_NAME'
 
 # Build timeout (in seconds) - increased for large builds with C++ compilation
-timeout: '7200s'
+timeout: '10800s'
 
 # Machine type for faster builds - upgraded to handle C++ compilation better
 options:
