@@ -63,7 +63,7 @@ timeout: '10800s'
 
 # Machine type for faster builds - upgraded to handle C++ compilation better
 options:
-  machineType: 'E2_HIGHCPU_32'  # More CPU cores for parallel compilation
+  machineType: 'E2_STANDARD_8'  # More CPU cores for parallel compilation
   diskSizeGb: '100'
   logStreamingOption: 'STREAM_ON'
   # Add build optimizations for C++ compilation
