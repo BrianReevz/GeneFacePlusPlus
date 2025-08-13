@@ -43,5 +43,18 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
 
+# Make base conda environment
+ENV CONDA=pytorch
+RUN conda tos accept --override-channels --channel defaults \
+    && conda update -n base conda -y \
+    && conda init bash \
+    && conda create -n "${CONDA}" python="${PYTHON_VERSION}"
+ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${BASEPATH}"
+
+# Install pytorch
+ARG PYTORCH="2.0.1"
+ARG CUDA="129"
+RUN pip3 install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
+
     # Set your working directory
 WORKDIR /workspace
