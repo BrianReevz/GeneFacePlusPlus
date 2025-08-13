@@ -1,0 +1,33 @@
+steps:
+# Step 0: Pull base images
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'pull',
+      'nvcr.io/nvidia/pytorch:24.04-py3'
+    ]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'pull',
+      'nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04'
+    ]
+  # Step 1: Build the base image with inline cache
+  - name: 'gcr.io/cloud-builders/docker'
+    env: 
+      -'DOCKER_BUILDKIT=1'
+    args:
+      - 'build'
+      - '--tag'
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+      # Specify the Dockerfile
+      - '--file'
+      - 'Dockerfile.cu118.torch2.0.1.py39NEW'
+      - '.'
+# Top-level entry tells Cloud Build to automatically push this image upon a successful build.
+# This replaces the need for an explicit 'docker push' command.
+images:
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+
+# Substitutions for versioning and region
+substitutions:
+  _REGION: 'us-central1' 

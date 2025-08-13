@@ -1,0 +1,47 @@
+ARG CUDA_VERSION="13.0.0"
+ARG CUDNN_VERSION=""
+ARG UBUNTU_VERSION="24.04"
+
+# Base NVidia CUDA Ubuntu image
+FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
+# Set environment variable for non-interactive installations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set up environment variables
+
+ENV HOME /root
+WORKDIR $HOME
+ENV PYTHON_VERSION=3.9.18
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+
+# Install Python plus openssh, which is our minimum set of required packages.
+# Install useful command line utility software  
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    zsh \
+    wget \
+    tmux \
+    tldr \
+    nvtop \
+    vim \
+    neovim \
+    curl \
+    rsync \
+    net-tools \
+    less \
+    iputils-ping \
+    p7zip-full \
+    zip \
+    unzip \
+    # Clean up the apt cache to reduce image size
+    && rm -rf /var/lib/apt/lists/*
+
+    # Install Miniconda for Python env management
+ENV PATH="${HOME}/miniconda3/bin:${PATH}"
+ENV BASEPATH="${PATH}"
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && mkdir ${HOME}/.conda \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh
+
+    # Set your working directory
+WORKDIR /workspace
