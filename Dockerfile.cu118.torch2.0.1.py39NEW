@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     p7zip-full \
     zip \
     unzip \
+    git-lfs \
     # Clean up the apt cache to reduce image size
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,5 +57,10 @@ ARG PYTORCH="2.0.1"
 ARG CUDA="129"
 RUN pip3 install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
 
+# Set up git to support LFS, and to store credentials; useful for Huggingface Hub
+RUN git config --global credential.helper store && \
+    git lfs install
     # Set your working directory
 WORKDIR /workspace
+
+CMD [ "tail -f /dev/null" ]
