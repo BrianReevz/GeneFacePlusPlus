@@ -23,6 +23,12 @@ RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" &
 
 COPY . /workspace
 WORKDIR /workspace
+# Install system dependencies required for compiling Python packages like dlib.
+# This step is crucial for packages that have C++ extensions.
+RUN apt-get update && apt-get install -y \
+    cmake \
+    build-essential
+
 
 # other dependencies
 RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
