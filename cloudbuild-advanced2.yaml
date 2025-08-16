@@ -1,33 +1,61 @@
+# This configuration defines a multi-step Docker build process in Google Cloud Build.
 steps:
-# Step 0: Pull base images
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'pull',
-      'nvcr.io/nvidia/pytorch:24.04-py3'
-    ]
+# Step 0: Pull base images to leverage Docker's layer caching.
+# This can speed up builds if the base images haven't changed.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['pull', 'nvcr.io/nvidia/pytorch:24.04-py3']
 
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'pull',
-      'nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04'
-    ]
-  # Step 1: Build the base image with inline cache
-  - name: 'gcr.io/cloud-builders/docker'
-    env: 
-      -'DOCKER_BUILDKIT=1'
-    args:
-      - 'build'
-      - '--tag'
-      - '$_REGION-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
-      # Specify the Dockerfile
-      - '--file'
-      - 'Dockerfile.cu118.torch2.0.1.py39NEW'
-      - '.'
-# Top-level entry tells Cloud Build to automatically push this image upon a successful build.
-# This replaces the need for an explicit 'docker push' command.
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['pull', 'nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04']
+
+# Step 1a: Attempt to pull the cached base image from the registry to use as a cache.
+# The '|| exit 0' ensures that the build doesn't fail if the image doesn't exist yet (e.g., on the first run).
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'pull-cached-base-image'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - 'docker pull ${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39 || exit 0'
+
+# Step 1b: Build the custom base image, using the pulled image as a cache.
+# If the Dockerfile or its context hasn't changed, this step will be very fast.
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-base-image'
+  env:
+    - 'DOCKER_BUILDKIT=1'
+  args:
+    - 'build'
+    - '--cache-from'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - '--tag'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - '--file'
+    - 'Dockerfile.cu118.torch2.0.1.py39NEW'
+    - '.'
+
+# Step 2: Build the final application image using the custom base image from Step 1.
+- name: 'gcr.io/cloud-builders/docker'
+  id: 'build-application-image'
+  env:
+    - 'DOCKER_BUILDKIT=1'
+  args:
+    - 'build'
+    - '--tag'
+    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest'
+    # This build-arg passes the name of the image from Step 1 into the Dockerfile.
+    # This makes your application Dockerfile more portable.
+    - '--build-arg'
+    - 'BASE_IMAGE=${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - '--file'
+    - 'Dockerfile.genface'
+    - '.'
+
+# The 'images' list tells Cloud Build to push all successfully built images
+# to the specified Artifact Registry repository.
 images:
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest'
 
-# Substitutions for versioning and region
+# Substitutions for region are defined here.
 substitutions:
-  _REGION: 'us-central1' 
+  _REGION: 'us-central1'
