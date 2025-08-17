@@ -1,13 +1,5 @@
 # This configuration defines a multi-step Docker build process in Google Cloud Build.
 steps:
-# Step 0: Pull base images to leverage Docker's layer caching.
-# This can speed up builds if the base images haven't changed.
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['pull', 'nvcr.io/nvidia/pytorch:24.04-py3']
-
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['pull', 'nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04']
-
 # Step 1a: Attempt to pull the cached base image from the registry to use as a cache.
 # The '|| exit 0' ensures that the build doesn't fail if the image doesn't exist yet (e.g., on the first run).
 - name: 'gcr.io/cloud-builders/docker'
