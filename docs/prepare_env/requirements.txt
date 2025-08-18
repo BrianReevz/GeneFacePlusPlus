@@ -60,7 +60,7 @@ s3prl
 fire
 
 # cal LMD
-dlib
+# dlib #removeing this line bc the compile takes too long. conda install instead
 
 # debug
 ipykernel

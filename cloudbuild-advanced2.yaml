@@ -28,6 +28,7 @@ steps:
 # Step 2: Build the final application image using the custom base image from Step 1.
 - name: 'gcr.io/cloud-builders/docker'
   id: 'build-application-image'
+  timeout: 10800s
   env:
     - 'DOCKER_BUILDKIT=1'
   args:

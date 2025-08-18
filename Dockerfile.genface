@@ -10,13 +10,30 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
 
-RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
+# --- Conda Environment Setup ---
+# Install all conda packages in a single command to allow the solver to find a
+# compatible set of dependencies. This resolves conflicts between channels like
+# pytorch (which prefers mkl) and conda-forge (which prefers openblas).
+RUN conda install -c pytorch -c nvidia -c conda-forge -y \
+    'pytorch=2.0.1' \
+    'torchvision=0.15.2' \
+    'torchaudio=2.0.2' \
+    'pytorch-cuda=11.8' \
+    'ffmpeg' \
+    'gxx_linux-64' \
+    'cmake' \
+    'dlib'
+
+#RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 
 # Install a C++ compiler and cmake directly into the conda environment.
 # This is the most reliable way to ensure tools like pip can find them
 # when they need to build packages from source (like dlib), as it avoids
 # PATH issues caused by conda's activation scripts.
 RUN conda install -c conda-forge gxx_linux-64 cmake
+
+# Install dlib from conda-forge to use a pre-compiled binary and avoid building from source.
+RUN conda install -c conda-forge dlib
 
 # torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
 # And torch=2.1+cuda12.1 will cause error of torch-ngp 
