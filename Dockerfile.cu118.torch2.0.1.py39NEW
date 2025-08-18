@@ -1,66 +1,40 @@
-ARG CUDA_VERSION="13.0.0"
-ARG CUDNN_VERSION=""
-ARG UBUNTU_VERSION="24.04"
-
+ARG CUDA_VERSION="11.8.0"
+ARG CUDNN_VERSION="8"
+ARG UBUNTU_VERSION="22.04"
 # Base NVidia CUDA Ubuntu image
-FROM nvidia/cuda:$CUDA_VERSION-cudnn$CUDNN_VERSION-devel-ubuntu$UBUNTU_VERSION AS base
+FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-ubuntu${UBUNTU_VERSION}
+
 # Set environment variable for non-interactive installations
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set up environment variables
-
 ENV HOME /root
 WORKDIR $HOME
-ENV PYTHON_VERSION=3.9.18
+ENV PYTHON_VERSION=3.9
 ENV PATH="/usr/local/cuda/bin:${PATH}"
 
-# Install Python plus openssh, which is our minimum set of required packages.
-# Install useful command line utility software  
+# --- System & Conda Setup ---
+# Install system dependencies and Miniconda in a single layer to reduce image size.
+ENV PATH="${HOME}/miniconda3/bin:${PATH}" # Add conda to the default path
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    zsh \
-    wget \
-    tmux \
-    tldr \
-    nvtop \
-    vim \
-    neovim \
-    curl \
-    rsync \
-    net-tools \
-    less \
-    iputils-ping \
-    p7zip-full \
-    zip \
-    unzip \
-    git-lfs \
-    # Clean up the apt cache to reduce image size
-    && rm -rf /var/lib/apt/lists/*
+        zsh wget tmux tldr nvtop vim neovim curl rsync \
+        net-tools less iputils-ping p7zip-full zip unzip git-lfs \
+    # Install Miniconda for Python environment management
+    && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O Miniconda.sh \
+    && mkdir -p ${HOME}/.conda \
+    && bash Miniconda.sh -b -p ${HOME}/miniconda3 \
+    && rm -f Miniconda.sh \
+    # Clean up apt cache
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-    # Install Miniconda for Python env management
-ENV PATH="${HOME}/miniconda3/bin:${PATH}"
-ENV BASEPATH="${PATH}"
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && mkdir ${HOME}/.conda \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p ${HOME}/miniconda3 \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh
-
-# Make base conda environment
+# --- Conda Environment Creation ---
 ENV CONDA=pytorch
-RUN conda tos accept --override-channels --channel defaults \
-    && conda update -n base conda -y \
+RUN conda update -n base conda -y \
     && conda init bash \
-    && conda create -n "${CONDA}" python="${PYTHON_VERSION}"
-ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${BASEPATH}"
+    && conda create -n "${CONDA}" python="${PYTHON_VERSION}" -y
+ENV PATH="${HOME}/miniconda3/envs/${CONDA}/bin:${PATH}" # Activate the conda environment by default
 
-# Install pytorch
-ARG PYTORCH="2.0.1"
-ARG CUDA="129"
-RUN pip3 install --no-cache-dir -U torch==$PYTORCH torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu$CUDA
-
-# Set up git to support LFS, and to store credentials; useful for Huggingface Hub
+# --- Git Configuration ---
+# Set up git to support LFS and store credentials for services like Huggingface Hub.
 RUN git config --global credential.helper store && \
     git lfs install
-    # Set your working directory
-WORKDIR /workspace
-
-CMD [ "tail -f /dev/null" ]

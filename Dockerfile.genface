@@ -1,6 +1,5 @@
 
 ARG BASE_IMAGE
-#FROM ubuntu22.04-cu118-conda:torch2.0.1-py39 
 FROM ${BASE_IMAGE}
 
 # Set environment variables to ensure the CUDA toolkit is found by compilers.
@@ -10,67 +9,48 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
 
-# --- Conda Environment Setup ---
-# Install all conda packages in a single command to allow the solver to find a
-# compatible set of dependencies. This resolves conflicts between channels like
-# pytorch (which prefers mkl) and conda-forge (which prefers openblas).
+# --- Dependency Installation ---
+# Install conda packages. A single command allows the solver to find a compatible set of dependencies.
+# torch2.0.1+cuda11.8 is recommended, as cuda11.8 is compatible with RTX 4090.
+# Newer torch versions (e.g., 2.1+cuda12.1) can cause errors with torch-ngp.
 RUN conda install -c pytorch -c nvidia -c conda-forge -y \
     'pytorch=2.0.1=py3.9_cuda11.8_cudnn8.7.0_0' \
     'torchvision=0.15.2' \
     'torchaudio=2.0.2' \
     'pytorch-cuda=11.8' \
-    'cuda-nvcc=11.8' \
     'ffmpeg' \
     'gxx_linux-64' \
     'cmake' \
     'dlib' \
     'pyaudio'
 
-#RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
-
-# Install a C++ compiler and cmake directly into the conda environment.
-# This is the most reliable way to ensure tools like pip can find them
-# when they need to build packages from source (like dlib), as it avoids
-# PATH issues caused by conda's activation scripts.
-# this is now part of main conda installRUN conda install -c conda-forge gxx_linux-64 cmake
-
-# Install dlib from conda-forge to use a pre-compiled binary and avoid building from source.
-# part of main conda install - RUN conda install -c conda-forge dlib
-
-# torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
-# And torch=2.1+cuda12.1 will cause error of torch-ngp 
-RUN conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia
-
 # --- CUDA Environment Configuration ---
 # Set CUDA_HOME to the conda environment's path to ensure that C++ extension builds
 # (like torch-ngp) use the conda-installed CUDA toolkit (11.8) instead of the
-# system-level one (13.0), resolving the mismatch error.
+# system-level one, resolving potential mismatch errors.
 ENV CUDA_HOME="/root/miniconda3/envs/pytorch"
 
-# install mmcv by mim
-RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
-    pip install chardet cython openmim==0.3.9 && \ 
-    mim install mmcv==2.1.0 
+# --- Pip Configuration & Installation ---
+# Trust specific hosts to avoid SSL issues and install pip packages in a single layer.
+ENV PIP_TRUSTED_HOST="download.openmmlab.com pypi.org files.pythonhosted.org"
+RUN pip install \
+    "git+https://github.com/facebookresearch/pytorch3d.git@stable" \
+    chardet \
+    cython \
+    "openmim==0.3.9" && \
+    mim install "mmcv==2.1.0"
 
+# Install system-level dependencies required for some python packages.
+RUN apt-get update -y && \
+    apt-get install -y libasound2-dev portaudio19-dev libgl1 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy application code and set working directory
 COPY . /workspace
 WORKDIR /workspace
 
-# --- Pip Configuration ---
-# Use an environment variable to tell pip to trust the mmcv host. This is more
-# reliable than a config file and works around the expired SSL certificate issue
-# on the download.openmmlab.com server.
-ENV PIP_TRUSTED_HOST="download.openmmlab.com pypi.org files.pythonhosted.org"
-
-# other dependencies
-RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1
-
-# Install a C++ compiler directly into the conda environment. This ensures that
-# pip can find it when it needs to build packages like dlib from source,
-# avoiding PATH issues caused by the conda activation.
-RUN conda install -c conda-forge gxx_linux-64
-
+# Install python dependencies from requirements.txt
 RUN pip install -r docs/prepare_env/requirements.txt -v
-
 
 # install torch-ngp extension
 RUN bash docs/prepare_env/install_ext.sh

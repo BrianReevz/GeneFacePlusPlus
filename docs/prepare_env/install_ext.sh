@@ -1,6 +1,6 @@
 # please run in <GeneFace> root dir.
-pip install ./modules/radnerfs/encoders/freqencoder -v
-pip install ./modules/radnerfs/encoders/shencoder -v
-pip install ./modules/radnerfs/encoders/gridencoder -v
-pip install ./modules/radnerfs/raymarching -v
-
+pip install -v \
+    ./modules/radnerfs/encoders/freqencoder \
+    ./modules/radnerfs/encoders/shencoder \
+    ./modules/radnerfs/encoders/gridencoder \
+    ./modules/radnerfs/raymarching

@@ -10,7 +10,7 @@ steps:
   entrypoint: 'bash'
   args:
     - '-c'
-    - 'docker pull ${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39 || exit 0'
+    - 'docker pull ${_BASE_IMAGE_TAG} || exit 0'
 
 # Step 1b: Build the custom base image, using the pulled image as a cache.
 # If the Dockerfile or its context hasn't changed, this step will be very fast.
@@ -21,9 +21,9 @@ steps:
   args:
     - 'build'
     - '--cache-from'
-    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - '${_BASE_IMAGE_TAG}'
     - '--tag'
-    - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - '${_BASE_IMAGE_TAG}'
     - '--file'
     - 'Dockerfile.cu118.torch2.0.1.py39NEW'
     - '.'
@@ -41,7 +41,7 @@ steps:
     # This build-arg passes the name of the image from Step 1 into the Dockerfile.
     # This makes your application Dockerfile more portable.
     - '--build-arg'
-    - 'BASE_IMAGE=${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+    - 'BASE_IMAGE=${_BASE_IMAGE_TAG}'
     - '--file'
     - 'Dockerfile.genface'
     - '.'
@@ -49,9 +49,10 @@ steps:
 # The 'images' list tells Cloud Build to push all successfully built images
 # to the specified Artifact Registry repository.
 images:
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu24.04-cu1300-conda:torch2.0.1-py39'
+  - '${_BASE_IMAGE_TAG}'
   - '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/genefaceplus:latest'
 
 # Substitutions for region are defined here.
 substitutions:
   _REGION: 'us-central1'
+  _BASE_IMAGE_TAG: '${_REGION}-docker.pkg.dev/$PROJECT_ID/geneface-repo/ubuntu22.04-cu118-conda:torch2.0.1-py39'
