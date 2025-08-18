@@ -1,4 +1,7 @@
 # This configuration defines a multi-step Docker build process in Google Cloud Build.
+# Set a global timeout for the entire build to 3 hours (10800 seconds).
+timeout: 10800s
+# This configuration defines a multi-step Docker build process in Google Cloud Build.
 steps:
 # Step 1a: Attempt to pull the cached base image from the registry to use as a cache.
 # The '|| exit 0' ensures that the build doesn't fail if the image doesn't exist yet (e.g., on the first run).

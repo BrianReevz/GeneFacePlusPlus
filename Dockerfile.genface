@@ -15,14 +15,16 @@ SHELL ["conda", "run", "-n", "pytorch", "/bin/bash", "-c"]
 # compatible set of dependencies. This resolves conflicts between channels like
 # pytorch (which prefers mkl) and conda-forge (which prefers openblas).
 RUN conda install -c pytorch -c nvidia -c conda-forge -y \
-    'pytorch=2.0.1' \
+    'pytorch=2.0.1=py3.9_cuda11.8_cudnn8.7.0_0' \
     'torchvision=0.15.2' \
     'torchaudio=2.0.2' \
     'pytorch-cuda=11.8' \
+    'cuda-nvcc=11.8' \
     'ffmpeg' \
     'gxx_linux-64' \
     'cmake' \
-    'dlib'
+    'dlib' \
+    'pyaudio'
 
 #RUN conda install conda-forge::ffmpeg # ffmpeg with libx264 codec to turn images to video
 
@@ -30,14 +32,20 @@ RUN conda install -c pytorch -c nvidia -c conda-forge -y \
 # This is the most reliable way to ensure tools like pip can find them
 # when they need to build packages from source (like dlib), as it avoids
 # PATH issues caused by conda's activation scripts.
-RUN conda install -c conda-forge gxx_linux-64 cmake
+# this is now part of main conda installRUN conda install -c conda-forge gxx_linux-64 cmake
 
 # Install dlib from conda-forge to use a pre-compiled binary and avoid building from source.
-RUN conda install -c conda-forge dlib
+# part of main conda install - RUN conda install -c conda-forge dlib
 
 # torch2.0.1+cuda11.8 is recommended , cuda11.8 is compatible with RTX 4090.
 # And torch=2.1+cuda12.1 will cause error of torch-ngp 
 RUN conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8 -c pytorch -c nvidia
+
+# --- CUDA Environment Configuration ---
+# Set CUDA_HOME to the conda environment's path to ensure that C++ extension builds
+# (like torch-ngp) use the conda-installed CUDA toolkit (11.8) instead of the
+# system-level one (13.0), resolving the mismatch error.
+ENV CUDA_HOME="/root/miniconda3/envs/pytorch"
 
 # install mmcv by mim
 RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" && \
@@ -47,6 +55,11 @@ RUN pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" &
 COPY . /workspace
 WORKDIR /workspace
 
+# --- Pip Configuration ---
+# Use an environment variable to tell pip to trust the mmcv host. This is more
+# reliable than a config file and works around the expired SSL certificate issue
+# on the download.openmmlab.com server.
+ENV PIP_TRUSTED_HOST="download.openmmlab.com pypi.org files.pythonhosted.org"
 
 # other dependencies
 RUN apt update -y && apt-get install -y libasound2-dev portaudio19-dev libgl1
